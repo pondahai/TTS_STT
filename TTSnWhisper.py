@@ -68,10 +68,13 @@ class FileProcessorApp:
 
         engine.runAndWait()
 
-        # 等待進度條更新線程結束
-        progress_thread.join()
+        # 提早結束進度條更新線程
+        self.progress["value"] = 100
+        self.root.update_idletasks()
 
         messagebox.showinfo("TTS", "Text-to-Speech completed. Output saved as output.wav")
+        self.progress["value"] = 0
+        self.root.update_idletasks()
 
     def speech_to_text(self, file_path):
         self.progress["value"] = 0
@@ -94,8 +97,9 @@ class FileProcessorApp:
 
         result = model.transcribe(file_path)
 
-        # 等待進度條更新線程結束
-        progress_thread.join()
+        # 提早結束進度條更新線程
+        self.progress["value"] = 100
+        self.root.update_idletasks()
 
         with open("output.srt", "w") as file:
             for i, segment in enumerate(result['segments']):
@@ -106,6 +110,8 @@ class FileProcessorApp:
                 file.write(f"{segment['text']}\n\n")
 
         messagebox.showinfo("Speech-to-Text", "Speech-to-Text completed. Output saved as output.srt")
+        self.progress["value"] = 0
+        self.root.update_idletasks()
 
     def update_progress(self, total_time):
         start_time = time.time()
@@ -130,8 +136,7 @@ class FileProcessorApp:
         random_text = '白日依山盡，黃河入海流，欲窮千里目，更上一層樓'
 
         # TTS benchmark
-        engine = pyttsx4.init()        
-        print('正在估算TTS單位速率')
+        engine = pyttsx4.init()
         start_time = time.time()
         engine.save_to_file(random_text, "benchmark.wav")
         engine.runAndWait()
@@ -140,14 +145,12 @@ class FileProcessorApp:
 
         # 語音辨識 benchmark
         model = whisper.load_model("medium")
-        print('正在估算STT單位速率')
         start_time = time.time()
         result = model.transcribe("benchmark.wav")
-        print(result['text'])
         stt_time = time.time() - start_time
         audio = AudioSegment.from_wav("benchmark.wav")
         total_duration = len(audio) / 1000  # 總時長（秒）
-        stt_time_per_second = stt_time / total_duration
+        stt_time_per_second = stt_time / total_duration / 4
 
         return tts_time_per_char, stt_time_per_second
 

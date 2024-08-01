@@ -14,4 +14,14 @@ Text to Speech and Speech to  Text
 ```bash
 pip install pydub pyttsx4 whisper tkinterdnd2
 ```
+
+## 使用方法
+```
+python TTSnWhisper.py
+```
+
+## 程式碼說明
+程式碼很短，她自我說明了  
+
+
 ![image](https://github.com/user-attachments/assets/10c19430-8fe8-42ce-a3be-e5de4554091c)

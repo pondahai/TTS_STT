@@ -96,12 +96,12 @@ class FileProcessorApp:
         progress_thread.start()
 
         result = model.transcribe(file_path)
-
+        print(result)
         # 提早結束進度條更新線程
         self.progress["value"] = 100
         self.root.update_idletasks()
 
-        with open("output.srt", "w") as file:
+        with open("output.srt", "w", encoding='UTF-8') as file:
             for i, segment in enumerate(result['segments']):
                 start_time = self.format_time(segment['start'])
                 end_time = self.format_time(segment['end'])

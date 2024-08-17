@@ -3,12 +3,14 @@ from tkinter import filedialog, messagebox, ttk
 import os
 from pydub import AudioSegment
 import pyttsx4
+# note: pip install openai-whisper
 import whisper
 from tkinterdnd2 import DND_FILES, TkinterDnD
 import threading
 import time
 import random
 import string
+from moviepy.editor import VideoFileClip
 
 class FileProcessorApp:
     def __init__(self, root):
@@ -36,6 +38,8 @@ class FileProcessorApp:
                 self.process_text_file(file_path)
             elif file_extension in ['.wav', '.mp3']:
                 self.process_audio_file(file_path)
+            elif file_extension in ['.mp4']:
+                self.process_video_file_audio_extration(file_path)
             else:
                 messagebox.showinfo("File Type", f"Unsupported file type: {file_extension}")
         else:
@@ -51,6 +55,12 @@ class FileProcessorApp:
         # 在這裡添加語音辨識邏輯
         threading.Thread(target=self.speech_to_text, args=(file_path,)).start()
 
+    def process_video_file_audio_extration(self, file_path):
+        video = VideoFileClip(file_path)
+        video.audio.write_audiofile("temp.wav", codec='pcm_s16le')
+        video.close()
+        self.process_audio_file("temp.wav")
+        
     def text_to_speech(self, file_path):
         self.progress["value"] = 0
         self.progress["maximum"] = 100
@@ -96,7 +106,7 @@ class FileProcessorApp:
         progress_thread.start()
 
         result = model.transcribe(file_path)
-        print(result)
+#         print(result)
         # 提早結束進度條更新線程
         self.progress["value"] = 100
         self.root.update_idletasks()

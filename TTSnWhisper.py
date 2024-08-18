@@ -30,10 +30,39 @@ class FileProcessorApp:
         # 進行系統 benchmark
         self.tts_time_per_char, self.stt_time_per_second = self.benchmark_system()
 
+    def replace_extension_and_avoid_duplicate(self, full_path, new_extension):
+        """
+        替換檔案的副檔名，並避免目的地已經有同名檔案存在。
+
+        參數:
+        full_path (str): 包含檔案名稱的全路徑字串。
+        new_extension (str): 新的副檔名（包括點號，例如 '.new'）。
+
+        回傳:
+        str: 新的檔案全路徑。
+        """
+        # 提取檔案名稱和副檔名
+        file_name_with_extension = os.path.basename(full_path)
+        file_name, _ = os.path.splitext(file_name_with_extension)
+
+        # 構建新的檔案名稱
+        new_file_name = file_name + new_extension
+        new_full_path = os.path.join(os.path.dirname(full_path), new_file_name)
+
+        # 檢查目的地是否已經存在同名檔案
+        counter = 1
+        while os.path.exists(new_full_path):
+            new_file_name = f"{file_name}_{counter}{new_extension}"
+            new_full_path = os.path.join(os.path.dirname(full_path), new_file_name)
+            counter += 1
+
+        return new_full_path
+
     def on_drop(self, event):
         file_path = event.data
         if os.path.isfile(file_path):
             file_extension = os.path.splitext(file_path)[1].lower()
+            
             if file_extension == '.txt':
                 self.process_text_file(file_path)
             elif file_extension in ['.wav', '.mp3']:
@@ -70,7 +99,8 @@ class FileProcessorApp:
             text = file.read()
 
         engine = pyttsx4.init()
-        engine.save_to_file(text, "output.wav")
+        output_file_path = self.replace_extension_and_avoid_duplicate(file_path, ".wav")
+        engine.save_to_file(text, output_file_path)
 
         # 啟動進度條更新線程
         progress_thread = threading.Thread(target=self.update_progress, args=(len(text) * self.tts_time_per_char,))
@@ -93,7 +123,8 @@ class FileProcessorApp:
 
         if file_path.endswith('.mp3'):
             audio = AudioSegment.from_mp3(file_path)
-            file_path = file_path.replace('.mp3', '.wav')
+#             file_path = file_path.replace('.mp3', '.wav')
+            file_path = self.replace_extension_and_avoid_duplicate(file_path, ".wav")
             audio.export(file_path, format="wav")
 
         audio = AudioSegment.from_wav(file_path)
@@ -110,14 +141,20 @@ class FileProcessorApp:
         # 提早結束進度條更新線程
         self.progress["value"] = 100
         self.root.update_idletasks()
-
-        with open("output.srt", "w", encoding='UTF-8') as file:
+        
+        output_file_path = self.replace_extension_and_avoid_duplicate(file_path, ".srt")
+        with open(output_file_path, "w", encoding='UTF-8') as file:
             for i, segment in enumerate(result['segments']):
                 start_time = self.format_time(segment['start'])
                 end_time = self.format_time(segment['end'])
                 file.write(f"{i+1}\n")
                 file.write(f"{start_time} --> {end_time}\n")
                 file.write(f"{segment['text']}\n\n")
+        
+        output_file_path = self.replace_extension_and_avoid_duplicate(file_path, ".txt")
+        with open(output_file_path, "w", encoding='UTF-8') as file:
+            for i, segment in enumerate(result['segments']):
+                file.write(f"{segment['text']}\n")
 
         messagebox.showinfo("Speech-to-Text", "Speech-to-Text completed. Output saved as output.srt")
         self.progress["value"] = 0

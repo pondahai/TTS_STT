@@ -13,7 +13,7 @@ Text to Speech and Speech to  Text
 首先，你需要安裝一些必要的 Python 程式庫。你可以使用以下命令來安裝：
 
 ```bash
-pip install pydub pyttsx4 whisper tkinterdnd2
+pip install pydub pyttsx4 faster_whisper tkinterdnd2
 ```
 
 ## 使用方法
@@ -24,5 +24,7 @@ python TTSnWhisper.py
 ## 程式碼說明
 程式碼很短，她自我說明了  
 
+## 20240902  
+改用 faster_whisper
 
 ![image](https://github.com/user-attachments/assets/10c19430-8fe8-42ce-a3be-e5de4554091c)

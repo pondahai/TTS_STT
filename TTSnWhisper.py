@@ -4,7 +4,11 @@ import os
 from pydub import AudioSegment
 import pyttsx4
 # note: pip install openai-whisper
-import whisper
+# import whisper
+
+from faster_whisper import WhisperModel
+model_size = "large-v3"
+
 from tkinterdnd2 import DND_FILES, TkinterDnD
 import threading
 import time
@@ -12,6 +16,7 @@ import random
 import string
 from moviepy.editor import VideoFileClip
 
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 class FileProcessorApp:
     def __init__(self, root):
         self.root = root
@@ -86,9 +91,10 @@ class FileProcessorApp:
 
     def process_video_file_audio_extration(self, file_path):
         video = VideoFileClip(file_path)
-        video.audio.write_audiofile("temp.wav", codec='pcm_s16le')
+        output_file_path = self.replace_extension_and_avoid_duplicate(file_path, ".wav")
+        video.audio.write_audiofile(output_file_path, codec='pcm_s16le')
         video.close()
-        self.process_audio_file("temp.wav")
+        self.process_audio_file(output_file_path)
         
     def text_to_speech(self, file_path):
         self.progress["value"] = 0
@@ -130,31 +136,40 @@ class FileProcessorApp:
         audio = AudioSegment.from_wav(file_path)
         total_duration = len(audio) / 1000  # 總時長（秒）
 
-        model = whisper.load_model("medium")
-
+#         model = whisper.load_model("medium")
+        model = WhisperModel(model_size, device="cpu", compute_type="int8")
         # 啟動進度條更新線程
         progress_thread = threading.Thread(target=self.update_progress, args=(total_duration * self.stt_time_per_second,))
         progress_thread.start()
 
-        result = model.transcribe(file_path)
-#         print(result)
+        result, info = model.transcribe(file_path, beam_size=5)
+        print(result, info)
         # 提早結束進度條更新線程
         self.progress["value"] = 100
         self.root.update_idletasks()
         
         output_file_path = self.replace_extension_and_avoid_duplicate(file_path, ".srt")
-        with open(output_file_path, "w", encoding='UTF-8') as file:
-            for i, segment in enumerate(result['segments']):
-                start_time = self.format_time(segment['start'])
-                end_time = self.format_time(segment['end'])
+        output_file_path_txt = self.replace_extension_and_avoid_duplicate(file_path, ".txt")
+        with open(output_file_path, "w", encoding='UTF-8') as file, open(output_file_path_txt, "w", encoding='UTF-8') as file2:
+#             print(result['segments'])
+#             for i, segment in enumerate(result['segments']):
+#                 start_time = self.format_time(segment['start'])
+#                 end_time = self.format_time(segment['end'])
+#                 file.write(f"{i+1}\n")
+#                 file.write(f"{start_time} --> {end_time}\n")
+#                 file.write(f"{segment['text']}\n\n")
+            for i, segment in enumerate(result):
+                start_time = self.format_time(segment.start)
+                end_time = self.format_time(segment.end)
+                print(f"{i+1}")
+                print(f"{start_time} --> {end_time}")
+                print(f"{segment.text}\n")
+                                
                 file.write(f"{i+1}\n")
                 file.write(f"{start_time} --> {end_time}\n")
-                file.write(f"{segment['text']}\n\n")
-        
-        output_file_path = self.replace_extension_and_avoid_duplicate(file_path, ".txt")
-        with open(output_file_path, "w", encoding='UTF-8') as file:
-            for i, segment in enumerate(result['segments']):
-                file.write(f"{segment['text']}\n")
+                file.write(f"{segment.text}\n\n")
+                file2.write(f"{segment.text}\n")
+                
 
         messagebox.showinfo("Speech-to-Text", "Speech-to-Text completed. Output saved as output.srt")
         self.progress["value"] = 0
@@ -191,13 +206,14 @@ class FileProcessorApp:
         tts_time_per_char = tts_time / len(random_text)
 
         # 語音辨識 benchmark
-        model = whisper.load_model("medium")
+#         model = whisper.load_model("medium")
+        model = WhisperModel(model_size, device="cpu", compute_type="int8")
         start_time = time.time()
-        result = model.transcribe("benchmark.wav")
+        result, info = model.transcribe("benchmark.wav", beam_size=5)
         stt_time = time.time() - start_time
         audio = AudioSegment.from_wav("benchmark.wav")
         total_duration = len(audio) / 1000  # 總時長（秒）
-        stt_time_per_second = stt_time / total_duration / 4
+        stt_time_per_second = stt_time / total_duration / 2
 
         return tts_time_per_char, stt_time_per_second
 

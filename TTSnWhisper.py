@@ -7,7 +7,7 @@ import pyttsx4
 # import whisper
 
 from faster_whisper import WhisperModel
-model_size = "large-v3"
+model_size = "distil-large-v3"
 
 from tkinterdnd2 import DND_FILES, TkinterDnD
 import threading
@@ -17,6 +17,7 @@ import string
 from moviepy.editor import VideoFileClip
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
+
 class FileProcessorApp:
     def __init__(self, root):
         self.root = root
@@ -32,8 +33,24 @@ class FileProcessorApp:
         self.root.drop_target_register(DND_FILES)
         self.root.dnd_bind('<<Drop>>', self.on_drop)
 
+        # 這裡加入你的log框架
+        self.log_frame = tk.Frame(self.root)
+
+        scrollbar = tk.Scrollbar(self.log_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.log_text_area = tk.Text(self.log_frame)
+        self.log_text_area.pack(fill=tk.BOTH, expand=1)
+        self.log_text_area.config(yscrollcommand=scrollbar.set)
+        scrollbar.config(command=self.log_text_area.yview)
+
+        self.log_frame.pack(pady=20)
+
         # 進行系統 benchmark
         self.tts_time_per_char, self.stt_time_per_second = self.benchmark_system()
+
+    def log_info(self, message):
+        self.log_text_area.insert(tk.END, f"[INFO] {message}\n")
+        self.log_text_area.see(tk.END)  # 移動視窗到最後一行
 
     def replace_extension_and_avoid_duplicate(self, full_path, new_extension):
         """
@@ -100,7 +117,8 @@ class FileProcessorApp:
         self.progress["value"] = 0
         self.progress["maximum"] = 100
         self.root.update_idletasks()
-
+        self.log_info("text to speech...")
+        
         with open(file_path, 'r') as file:
             text = file.read()
 
@@ -126,6 +144,7 @@ class FileProcessorApp:
         self.progress["value"] = 0
         self.progress["maximum"] = 100
         self.root.update_idletasks()
+        self.log_info("speech to text...")
 
         if file_path.endswith('.mp3'):
             audio = AudioSegment.from_mp3(file_path)
@@ -144,9 +163,6 @@ class FileProcessorApp:
 
         result, info = model.transcribe(file_path, beam_size=5)
         print(result, info)
-        # 提早結束進度條更新線程
-        self.progress["value"] = 100
-        self.root.update_idletasks()
         
         output_file_path = self.replace_extension_and_avoid_duplicate(file_path, ".srt")
         output_file_path_txt = self.replace_extension_and_avoid_duplicate(file_path, ".txt")
@@ -161,9 +177,12 @@ class FileProcessorApp:
             for i, segment in enumerate(result):
                 start_time = self.format_time(segment.start)
                 end_time = self.format_time(segment.end)
-                print(f"{i+1}")
-                print(f"{start_time} --> {end_time}")
-                print(f"{segment.text}\n")
+                self.log_info(f"{i+1}")
+                self.log_info(f"{start_time} --> {end_time}")
+                self.log_info(f"{segment.end*100//total_duration}")
+                self.log_info(f"{segment.text}\n")
+                self.progress["value"] = segment.end*100//total_duration
+                self.root.update_idletasks()
                                 
                 file.write(f"{i+1}\n")
                 file.write(f"{start_time} --> {end_time}\n")
@@ -171,20 +190,25 @@ class FileProcessorApp:
                 file2.write(f"{segment.text}\n")
                 
 
+        # 提早結束進度條更新線程
+        self.progress["value"] = 100
+        self.root.update_idletasks()
+        
         messagebox.showinfo("Speech-to-Text", "Speech-to-Text completed. Output saved as output.srt")
         self.progress["value"] = 0
         self.root.update_idletasks()
 
     def update_progress(self, total_time):
-        start_time = time.time()
+#         start_time = time.time()
+#         print(total_time)
         while True:
-            elapsed_time = time.time() - start_time
-            progress = (elapsed_time / total_time) * 100
-            self.progress["value"] = progress
+#             elapsed_time = time.time() - start_time
+#             progress = (elapsed_time / total_time) * 100
+            self.progress["value"] = self.progress["value"] + 1
             self.root.update_idletasks()
-            if progress >= 100:
+            if self.progress["value"] >= 100:
                 break
-            time.sleep(0.1)  # 更新間隔
+            time.sleep(total_time/100)  # 更新間隔
 
     def format_time(self, seconds):
         hours = int(seconds // 3600)
@@ -213,7 +237,7 @@ class FileProcessorApp:
         stt_time = time.time() - start_time
         audio = AudioSegment.from_wav("benchmark.wav")
         total_duration = len(audio) / 1000  # 總時長（秒）
-        stt_time_per_second = stt_time / total_duration / 2
+        stt_time_per_second = stt_time / total_duration / 1
 
         return tts_time_per_char, stt_time_per_second
 

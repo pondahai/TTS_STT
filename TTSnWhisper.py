@@ -146,13 +146,16 @@ class FileProcessorApp:
         self.root.update_idletasks()
         self.log_info("speech to text...")
 
+#        if file_path.endswith('.mp3'):
+#            audio = AudioSegment.from_mp3(file_path)
+##             file_path = file_path.replace('.mp3', '.wav')
+#            file_path = self.replace_extension_and_avoid_duplicate(file_path, ".wav")
+#            audio.export(file_path, format="wav")
+
         if file_path.endswith('.mp3'):
             audio = AudioSegment.from_mp3(file_path)
-#             file_path = file_path.replace('.mp3', '.wav')
-            file_path = self.replace_extension_and_avoid_duplicate(file_path, ".wav")
-            audio.export(file_path, format="wav")
-
-        audio = AudioSegment.from_wav(file_path)
+        else:
+            audio = AudioSegment.from_wav(file_path)
         total_duration = len(audio) / 1000  # 總時長（秒）
 
 #         model = whisper.load_model("medium")

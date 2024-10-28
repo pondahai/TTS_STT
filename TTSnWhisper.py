@@ -7,7 +7,8 @@ import pyttsx4
 # import whisper
 
 from faster_whisper import WhisperModel
-model_size = "distil-large-v3"
+model_size = "large-v3"
+# model_size = "distil-large-v3"
 
 from tkinterdnd2 import DND_FILES, TkinterDnD
 import threading
@@ -82,6 +83,7 @@ class FileProcessorApp:
 
     def on_drop(self, event):
         file_path = event.data
+        file_path = file_path.replace("{", '').replace("}", '')
         if os.path.isfile(file_path):
             file_extension = os.path.splitext(file_path)[1].lower()
             
@@ -146,16 +148,13 @@ class FileProcessorApp:
         self.root.update_idletasks()
         self.log_info("speech to text...")
 
-#        if file_path.endswith('.mp3'):
-#            audio = AudioSegment.from_mp3(file_path)
-##             file_path = file_path.replace('.mp3', '.wav')
-#            file_path = self.replace_extension_and_avoid_duplicate(file_path, ".wav")
-#            audio.export(file_path, format="wav")
-
         if file_path.endswith('.mp3'):
             audio = AudioSegment.from_mp3(file_path)
-        else:
-            audio = AudioSegment.from_wav(file_path)
+#             file_path = file_path.replace('.mp3', '.wav')
+            file_path = self.replace_extension_and_avoid_duplicate(file_path, ".wav")
+            audio.export(file_path, format="wav")
+
+        audio = AudioSegment.from_wav(file_path)
         total_duration = len(audio) / 1000  # 總時長（秒）
 
 #         model = whisper.load_model("medium")
@@ -237,6 +236,9 @@ class FileProcessorApp:
         model = WhisperModel(model_size, device="cpu", compute_type="int8")
         start_time = time.time()
         result, info = model.transcribe("benchmark.wav", beam_size=5)
+        print(result, info)
+        for i, segment in enumerate(result):
+            print(f"{segment.text}")
         stt_time = time.time() - start_time
         audio = AudioSegment.from_wav("benchmark.wav")
         total_duration = len(audio) / 1000  # 總時長（秒）
